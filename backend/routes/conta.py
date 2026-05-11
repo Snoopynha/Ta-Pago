@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Conta, Usuario, StatusConta, CategoriaConta, Frequencia, Historico
 from datetime import datetime, date
+from sqlalchemy import func
 
 contas_bp = Blueprint('contas', __name__)
 
@@ -144,3 +145,46 @@ def deletar_conta(id):
     db.session.commit()
 
     return jsonify({"msg": "Conta excluída com sucesso"}), 200
+
+@contas_bp.route('/dashboard', methods=['GET'])
+@jwt_required()
+def get_dashboard():
+    usuario = get_usuario_logado()
+    residencia_id = usuario.residencia_id
+    atualizar_contas_atrasadas(residencia_id)
+    
+    # Busca a contagem e a soma dos valores por status
+    resumo_status = db.session.query(
+        Conta.status,
+        func.count(Conta.id).label('quantidade'),
+        func.sum(Conta.valor).label('total_valor')
+    ).filter(Conta.residencia_id == residencia_id).group_by(Conta.status).all()
+    
+    stats_contas = {s.value: {"quantidade": 0, "total": "0.00"} for s in StatusConta}
+    for status, qtd, total in resumo_status:
+        stats_contas[status.value] = {"quantidade": qtd, "total": str(total or 0.00)}
+
+    # Pagamentos por categoria
+    gastos_categoria = db.session.query(
+        Conta.categoria,
+        func.sum(Historico.valor_pago).label('total')
+    ).join(Historico, Conta.id == Historico.conta_id)\
+        .filter(Conta.residencia_id == residencia_id)\
+        .group_by(Conta.categoria).all()
+    
+    stats_categorias = [
+        {"categoria": cat.value, "total": str(total)} 
+        for cat, total in gastos_categoria
+    ]
+    
+    # Gastos no mês
+    hoje = datetime.utcnow()
+    total_mes_atual = db.session.query(func.sum(Historico.valor_pago))\
+        .join(Conta)\
+        .filter(
+            Conta.residencia_id == residencia_id,
+            func.extract('month', Historico.data_pagamento) == hoje.month,
+            func.extract('year', Historico.data_pagamento) == hoje.year
+        ).scalar()
+    
+    return jsonify({"resumo_status": stats_contas, "gastos_por_categoria": stats_categorias, "total_pago_mes_atual": str(total_mes_atual or 0.00), "nome_residencia": usuario.residencia.nome}), 200
