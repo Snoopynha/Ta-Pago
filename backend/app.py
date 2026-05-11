@@ -4,6 +4,7 @@ from models import db, Residencia, Usuario
 import os
 from dotenv import load_dotenv
 from backend.routes.usuario import auth_bp
+from backend.routes.conta import contas_bp
 
 load_dotenv()
 app = Flask(__name__)
@@ -15,6 +16,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 jwt = JWTManager(app)
 app.register_blueprint(auth_bp)
+app.register_blueprint(contas_bp, url_prefix='/api')
 
 def seed_db():
     if Residencia.query.first() is None:
