@@ -1,4 +1,6 @@
 import enum
+import string
+import random
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,11 +29,16 @@ class StatusConta(enum.Enum):
     PAGO = "pago"
     ATRASADO = "atrasado"
 
+def gerar_codigo_convite():
+    caracteres = string.ascii_uppercase + string.digits
+    return ''.join(random.choice(caracteres) for _ in range(6))
+
 class Residencia(db.Model):
     __tablename__ = 'residencia'
     
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
+    codigo_convite = db.Column(db.String(8), unique=True, nullable=False, default=gerar_codigo_convite)
     usuarios = db.relationship('Usuario', backref='residencia', lazy=True, cascade='all, delete-orphan')
     contas = db.relationship('Conta', backref='residencia', lazy=True, cascade='all, delete-orphan')
 
@@ -39,6 +46,7 @@ class Residencia(db.Model):
         return {
             'id': self.id,
             'nome': self.nome,
+            'codigo_convite': self.codigo_convite,
             'usuarios': [u.to_dict() for u in self.usuarios],
             'contas': [c.to_dict() for c in self.contas]
         }

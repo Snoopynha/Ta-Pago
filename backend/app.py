@@ -1,25 +1,28 @@
 from flask import Flask, jsonify
+from flask_jwt_extended import JWTManager
+from models import db, Residencia, Usuario
+import os
+from dotenv import load_dotenv
+from backend.routes.usuario import auth_bp
 
+load_dotenv()
 app = Flask(__name__)
 
-@app.route("/")
-def home():
-    return jsonify({
-        "Eu": "You know what he said to me?"
-    })
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///financeiro.db'
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-@app.route("/what")
-def what():
-    return jsonify({
-        "Eu": [
-            "He was like,",
-            "'You are so rude'",
-            "",
-            "And I was like,",
-            "'Boy, does it look like I could care?'",
-            "I couldn't even care less!"
-        ]
-    })
+db.init_app(app)
+jwt = JWTManager(app)
+app.register_blueprint(auth_bp)
+
+def seed_db():
+    if Residencia.query.first() is None:
+        print("Populando o banco de dados...")
+
+with app.app_context():
+    db.create_all()
+    seed_db()
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True)
