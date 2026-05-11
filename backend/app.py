@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from backend.routes.usuario import auth_bp
 from backend.routes.conta import contas_bp
+from backend.routes.historico import historico_bp
 
 load_dotenv()
 app = Flask(__name__)
@@ -17,6 +18,7 @@ db.init_app(app)
 jwt = JWTManager(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(contas_bp, url_prefix='/api')
+app.register_blueprint(historico_bp, url_prefix='/api')
 
 def seed_db():
     if Residencia.query.first() is None:
