@@ -17,7 +17,7 @@ def registrar():
 
     # Entra em uma residência
     if codigo_convite:
-        residencia = Residencia.query.get(codigo_convite=codigo_convite.upper()).first()
+        residencia = Residencia.query.filter_by(codigo_convite=codigo_convite.upper()).first()
         if not residencia:
             return jsonify({"msg": "Código de convite inválido ou não encontrado"}), 404
     
@@ -44,9 +44,9 @@ def logar():
     usuario = Usuario.query.filter_by(email=data.get('email')).first()
 
     if usuario and usuario.verificar_senha(data.get('senha')):
-        acess_token = create_access_token(identity=str(usuario.id))
+        access_token = create_access_token(identity=str(usuario.id))
         return jsonify({
-            "token": acess_token,
+            "token": access_token,
             "usuario": usuario.to_dict()
         }), 200
     
