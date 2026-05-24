@@ -1,15 +1,17 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from models import db, Residencia, Usuario,Conta, Historico, CategoriaConta, StatusConta, Frequencia
 import os
 from datetime import datetime, date, timedelta
 from dotenv import load_dotenv
-from backend.routes.usuario import auth_bp
-from backend.routes.conta import contas_bp
-from backend.routes.historico import historico_bp
+from routes.usuario import auth_bp
+from routes.conta import contas_bp
+from routes.historico import historico_bp
 
 load_dotenv()
 app = Flask(__name__)
+CORS(app)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///financeiro.db'
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
@@ -17,7 +19,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
 jwt = JWTManager(app)
-app.register_blueprint(auth_bp)
+app.register_blueprint(auth_bp, url_prefix='/api')
 app.register_blueprint(contas_bp, url_prefix='/api')
 app.register_blueprint(historico_bp, url_prefix='/api')
 
@@ -34,7 +36,7 @@ def seed_db():
         db.session.flush()
         
         # 2. Cria Usuários
-        user_1 = Usuario(nome="Little Tody", email="toddynho@email.com", residencia_id=residencia.id)
+        user_1 = Usuario(nome="Jordana Gleise", email="toddynho@email.com", residencia_id=residencia.id)
         user_1.set_senha("senha")
         user_2 = Usuario(nome="Malévola", email="umlitro@email.com", residencia_id=residencia.id)
         user_2.set_senha("senha")
@@ -79,4 +81,4 @@ with app.app_context():
     seed_db()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
