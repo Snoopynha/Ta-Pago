@@ -28,51 +28,230 @@ def seed_db():
         print("Populando o banco de dados com dados iniciais...")
         
         hoje = date.today()
-        agora = datetime.utcnow()
         
-        # 1. Cria a Residência
-        residencia = Residencia(nome="Largo de Bangu")
-        db.session.add(residencia)
+        dreamhouse = Residencia(nome="DreamHouse")
+        db.session.add(dreamhouse)
         db.session.flush()
         
-        # 2. Cria Usuários
-        user_1 = Usuario(nome="Jordana Gleise", email="toddynho@email.com", residencia_id=residencia.id)
-        user_1.set_senha("senha")
-        user_2 = Usuario(nome="Malévola", email="umlitro@email.com", residencia_id=residencia.id)
-        user_2.set_senha("senha")
-        
-        db.session.add_all([user_1, user_2])
+        barbie = Usuario(nome="Barbie", email="barbie@email.com", residencia_id=dreamhouse.id)
+        barbie.set_senha("senha")
+        skipper = Usuario(nome="Skipper", email="skipper@email.com", residencia_id=dreamhouse.id)
+        skipper.set_senha("senha")
+        stacie = Usuario(nome="Stacie", email="stacie@email.com", residencia_id=dreamhouse.id)
+        stacie.set_senha("senha")
+        chelsea = Usuario(nome="Chelsea", email="chelsea@email.com", residencia_id=dreamhouse.id)
+        chelsea.set_senha("senha")
+
+        db.session.add_all([barbie, skipper, stacie, chelsea])
         db.session.flush()
-
-        # 3. Cria Contas com status diferentes
-        conta_aluguel = Conta(
-            nome="Aluguel", valor=5500.00, vencimento=hoje + timedelta(days=10),
-            categoria=CategoriaConta.ALUGUEL, frequencia=Frequencia.MENSAL,
-            status=StatusConta.PENDENTE, residencia_id=residencia.id
-        )
-        conta_luz = Conta(
-            nome="Luz", valor=1080.50, vencimento=hoje - timedelta(days=5),
-            categoria=CategoriaConta.LUZ, frequencia=Frequencia.MENSAL,
-            status=StatusConta.PAGO, residencia_id=residencia.id
-        )
-        conta_internet = Conta(
-            nome="Internet Fibra", valor=199.90, vencimento=hoje - timedelta(days=2),
-            categoria=CategoriaConta.INTERNET, frequencia=Frequencia.MENSAL,
-            status=StatusConta.ATRASADO, residencia_id=residencia.id
-        )
-
-        db.session.add_all([conta_aluguel, conta_luz, conta_internet])
-        db.session.flush()
-
-        # 4. Cria o Histórico para a conta paga
-        historico_luz = Historico(
-            conta_id=conta_luz.id,
-            usuario_id=user_2.id,
-            valor_pago=1080.50,
-            data_pagamento=agora - timedelta(days=3)
-        )
         
-        db.session.add(historico_luz)
+        contas_dreamhouse = [
+            Conta(
+                nome="Energia",
+                valor=920.50,
+                vencimento=hoje - timedelta(days=20),
+                categoria=CategoriaConta.LUZ,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.PAGO,
+                residencia_id=dreamhouse.id,
+                observacao="Básica da casa"
+            ),
+            Conta(
+                nome="Internet Gamer da Skipper",
+                valor=320.00,
+                vencimento=hoje - timedelta(days=12),
+                categoria=CategoriaConta.INTERNET,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.PAGO,
+                residencia_id=dreamhouse.id,
+                observacao="Internet exclusiva"
+            ),
+            Conta(
+                nome="Reposição de Glitter",
+                valor=480.90,
+                vencimento=hoje - timedelta(days=8),
+                categoria=CategoriaConta.OUTROS,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.PAGO,
+                residencia_id=dreamhouse.id,
+                observacao="Glitter rosa premium"
+            ),
+            Conta(
+                nome="Piscina Aquecida",
+                valor=1250.00,
+                vencimento=hoje - timedelta(days=3),
+                categoria=CategoriaConta.AGUA,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.ATRASADO,
+                residencia_id=dreamhouse.id,
+                observacao="Aquecimento da piscina"
+            ),
+            Conta(
+                nome="Compras",
+                valor=2100.00,
+                vencimento=hoje + timedelta(days=5),
+                categoria=CategoriaConta.OUTROS,
+                frequencia=Frequencia.UNICA,
+                status=StatusConta.PENDENTE,
+                residencia_id=dreamhouse.id,
+                observacao="Redocorações"
+            ),
+            Conta(
+                nome="Luzes do Closet",
+                valor=650.75,
+                vencimento=hoje - timedelta(days=1),
+                categoria=CategoriaConta.LUZ,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.PAGO,
+                residencia_id=dreamhouse.id,
+                observacao="Especificamente a luz rosa"
+            )
+        ]
+        
+        db.session.add_all(contas_dreamhouse)
+        db.session.flush()
+        
+        historicos_dreamhouse = [
+            Historico(
+                conta_id=contas_dreamhouse[0].id,
+                usuario_id=barbie.id,
+                valor_pago=920.50,
+                data_pagamento=datetime.utcnow() - timedelta(days=19)
+            ),
+            Historico(
+                conta_id=contas_dreamhouse[1].id,
+                usuario_id=skipper.id,
+                valor_pago=320.00,
+                data_pagamento=datetime.utcnow() - timedelta(days=11)
+            ),
+            Historico(
+                conta_id=contas_dreamhouse[2].id,
+                usuario_id=barbie.id,
+                valor_pago=480.90,
+                data_pagamento=datetime.utcnow() - timedelta(days=7)
+            ),
+            Historico(
+                conta_id=contas_dreamhouse[5].id,
+                usuario_id=stacie.id,
+                valor_pago=650.75,
+                data_pagamento=datetime.utcnow() - timedelta(hours=18)
+            )
+        ]
+        
+        db.session.add_all(historicos_dreamhouse)
+        
+        watterson = Residencia(nome="A Incrível Casa dos Wattersons")
+        db.session.add(watterson)
+        db.session.flush()
+        
+        nicole = Usuario(nome="Nicole Watterson", email="nicole@email.com", residencia_id=watterson.id)
+        nicole.set_senha("senha")
+        richard = Usuario(nome="Richard Watterson", email="richard@email.com", residencia_id=watterson.id)
+        richard.set_senha("senha")
+        gumball = Usuario(nome="Gumball Watterson", email="gumball@email.com", residencia_id=watterson.id)
+        gumball.set_senha("senha")
+        darwin = Usuario(nome="Darwin Watterson", email="darwin@email.com", residencia_id=watterson.id)
+        darwin.set_senha("senha")
+        anais = Usuario(nome="Anais Watterson", email="anais@email.com", residencia_id=watterson.id)
+        anais.set_senha("senha")
+        
+        db.session.add_all([nicole, richard, gumball, darwin, anais])
+        db.session.flush()
+        
+        contas_watterson = [
+            Conta(
+                nome="Conta de Água",
+                valor=980.00,
+                vencimento=hoje - timedelta(days=25),
+                categoria=CategoriaConta.AGUA,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.PAGO,
+                residencia_id=watterson.id,
+                observacao="Casa inundada pelo Darwin"
+            ),
+            Conta(
+                nome="Conserto da TV",
+                valor=540.00,
+                vencimento=hoje - timedelta(days=14),
+                categoria=CategoriaConta.OUTROS,
+                frequencia=Frequencia.UNICA,
+                status=StatusConta.PAGO,
+                residencia_id=watterson.id,
+                observacao="Richard caiu na televisão"
+            ),
+            Conta(
+                nome="Conta de Luz",
+                valor=720.45,
+                vencimento=hoje - timedelta(days=6),
+                categoria=CategoriaConta.LUZ,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.ATRASADO,
+                residencia_id=watterson.id,
+                observacao="Videogame ligado o dia inteiro"
+            ),
+            Conta(
+                nome="Internet",
+                valor=199.90,
+                vencimento=hoje - timedelta(days=2),
+                categoria=CategoriaConta.INTERNET,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.PAGO,
+                residencia_id=watterson.id,
+                observacao="Nicole trabalha remotamente"
+            ),
+            Conta(
+                nome="Pizza Gigante",
+                valor=310.00,
+                vencimento=hoje + timedelta(days=4),
+                categoria=CategoriaConta.OUTROS,
+                frequencia=Frequencia.UNICA,
+                status=StatusConta.PENDENTE,
+                residencia_id=watterson.id,
+                observacao="Pedido feito pelo Richard"
+            ),
+            Conta(
+                nome="Conta de Gás",
+                valor=150.00,
+                vencimento=hoje - timedelta(days=18),
+                categoria=CategoriaConta.GAS,
+                frequencia=Frequencia.MENSAL,
+                status=StatusConta.PAGO,
+                residencia_id=watterson.id,
+                observacao="Geralmente explodido"
+            )
+        ]
+        
+        db.session.add_all(contas_watterson)
+        db.session.flush()
+        
+        historicos_watterson = [
+            Historico(
+                conta_id=contas_watterson[0].id,
+                usuario_id=nicole.id,
+                valor_pago=980.00,
+                data_pagamento=datetime.utcnow() - timedelta(days=24)
+            ),
+            Historico(
+                conta_id=contas_watterson[1].id,
+                usuario_id=nicole.id,
+                valor_pago=540.00,
+                data_pagamento=datetime.utcnow() - timedelta(days=13)
+            ),
+            Historico(
+                conta_id=contas_watterson[3].id,
+                usuario_id=gumball.id,
+                valor_pago=199.90,
+                data_pagamento=datetime.utcnow() - timedelta(days=1)
+            ),
+            Historico(
+                conta_id=contas_watterson[5].id,
+                usuario_id=nicole.id,
+                valor_pago=150.00,
+                data_pagamento=datetime.utcnow() - timedelta(days=17)
+            )
+        ]
+        
+        db.session.add_all(historicos_watterson)
         db.session.commit()
         print("Banco populado")
 
