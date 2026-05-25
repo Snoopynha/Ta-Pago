@@ -22,10 +22,10 @@ export const AuthProvider = ({ children }: any) => {
     async function signIn(email: string, senha: string) {
         try {
             const response = await api.post('/logar', { email, senha });
-            const { access_token, usuario } = response.data;
+            const { token, usuario } = response.data;
 
             setUser(usuario);
-            await AsyncStorage.setItem('@HomeFinance:token', access_token);
+            await AsyncStorage.setItem('@HomeFinance:token', token);
             await AsyncStorage.setItem('@HomeFinance:user', JSON.stringify(usuario));
 
             router.replace('/(tabs)/dashboard');
