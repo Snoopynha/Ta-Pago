@@ -1,16 +1,12 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import db, Conta, Usuario, StatusConta, CategoriaConta, Frequencia, Historico, Fatura
+from models import db, Conta, StatusConta, CategoriaConta, Frequencia, Historico, Fatura
+from utils import get_usuario_logado
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import func
 
 contas_bp = Blueprint('contas', __name__)
-
-def get_usuario_logado():
-    """Identifica o usuário que esta no aplicativo"""
-    user_id = get_jwt_identity()
-    return Usuario.query.get(user_id)
 
 def calcular_primeiro_vencimento(conta, data_referencia=None):
     """Calcula a lógica da data de vencimento com base na frequência"""
