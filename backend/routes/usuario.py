@@ -1,11 +1,12 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required
 from models import db, Usuario
+from utils import get_usuario_logado
 
-auth_bp = Blueprint('auth', __name__)
+usuario_bp = Blueprint('usuario', __name__)
 
-@auth_bp.route('/registrar', methods=['POST'])
-def registrar():
+@usuario_bp.route('/registrar', methods=['POST'])
+def registrar_perfil():
     data = request.get_json()
 
     if Usuario.query.filter_by(email=data.get('email')).first():
@@ -26,8 +27,33 @@ def registrar():
         "usuario": novo_usuario.to_dict()
     }), 201
 
-@auth_bp.route('/logar', methods=['POST'])
-def logar():
+@usuario_bp.route('/eu', methods=['GET'])
+@jwt_required()
+def get_perfil():
+    usuario = get_usuario_logado()
+    return jsonify(usuario.to_dict()), 200
+
+@usuario_bp.route('/eu', methods=['PUT'])
+@jwt_required()
+def atualizar_perfil():
+    usuario = get_usuario_logado()
+    data = request.get_json()
+
+    if 'nome' in data:
+        usuario.nome = data['nome']
+    if 'email' in data:
+        if Usuario.query.filter(Usuario.email == data['email'], Usuario.id != usuario.id).first():
+            return jsonify({"msg": "Esse email já está em uso"}), 400
+
+        usuario.email = data['email']
+    if 'senha' in data:
+        usuario.set_senha(data['senha'])
+
+    db.session.commit()
+    return jsonify(usuario.to_dict()), 200
+
+@usuario_bp.route('/logar', methods=['POST'])
+def logar_perfil():
     data = request.get_json()
     usuario = Usuario.query.filter_by(email=data.get('email')).first()
 
