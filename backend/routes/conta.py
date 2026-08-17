@@ -88,14 +88,61 @@ def gerar_proxima_fatura(fatura_atual):
     )
     return nova_fatura
 
-@contas_bp.route('/contas', methods=['POST'])
+def aplicar_filtros_faturas(query, params):
+    """Aplica filtros nas requisições das faturas"""
+    try:
+        if params.get('vencimento_apos'):
+            query = query.filter(Fatura.vencimento >= datetime.strptime(params['vencimento_apos'], '%Y-%m-%d').date())
+        if params.get('vencimento_ate'):
+            query = query.filter(Fatura.vencimento <= datetime.strptime(params['vencimento_ate'], '%Y-%m-%d').date())
+    except ValueError:
+        raise ValueError("Formato de data inválido")
+    if params.get('status'):
+        query = query.filter(Fatura.status == StatusConta(params['status']))
+    if params.get('categoria'):
+        query = query.filter(Conta.categoria == CategoriaConta(params['categoria']))
+    if params.get('pago_por'):
+        subquery = db.session.query(Historico.fatura_id).filter(Historico.usuario_id == params['pago_por'])
+        query = query.filter(Fatura.id.in_(subquery))
+    return query
+
+def aplica_ordenacao(query, params, default_ordem='vencimento', default_direcao='desc'):
+    """Aplica ordenação nas requisição da faturas"""
+    coluna = params.get('ordenar_por', default_ordem)
+    if coluna not in ['vencimento', 'valor', 'data_pagamento', 'status']:
+        coluna = default_ordem
+
+    direcao = params.get('ordem', default_direcao)
+
+    if coluna == 'data_pagamento':
+        subquery = db.session.query(
+            Historico.fatura_id,
+            func.max(Historico.data_pagamento).label('ultima_data')
+        ).group_by(Historico.fatura_id).subquery()
+
+        query = query.outerjoin(subquery, Fatura.id == subquery.c.fatura_id)
+        
+        if direcao == 'desc':
+            query = query.order_by(subquery.c.ultima_data.desc())
+        else:
+            query = query.order_by(subquery.c.ultima_data.asc())
+    else:
+        if direcao == 'desc':
+            query = query.order_by(getattr(Fatura, coluna).desc())
+        else:
+            query = query.order_by(getattr(Fatura, coluna).asc())
+    return query
+
+@contas_bp.route('/', methods=['POST'])
 @jwt_required()
 def criar_conta():
     usuario = get_usuario_logado()
     if not usuario.residencia_id:
-        return jsonify({"msg": "Usuário não está em uma residência"}), 403
+        return jsonify({"msg": "Você não está em uma residência"}), 403
     
     data = request.get_json()
+    if not data.get('nome') or not data.get('categoria') or not data.get('valor_base'):
+        return jsonify({"msg": "Os campos nome, categoria e valor base são obrigatórios"}), 400
 
     try:
         conta = Conta(
@@ -133,6 +180,39 @@ def criar_conta():
     except Exception as e:
         db.session.rollback()
         return jsonify({"erro": str(e)}), 400
+
+@contas_bp.route('/', methods=['GET'])
+@jwt_required()
+def listar_contas():
+    usuario = get_usuario_logado()
+    if not usuario.residencia_id:
+        return jsonify({"msg": "Você não está em uma residência"}), 403
+
+    query = Conta.query.filter_by(residencia_id=usuario.residencia_id)
+
+    #Filtros
+    categoria = request.args.get('categoria')
+    if categoria:
+        query = query.filter(Conta.categoria == CategoriaConta(categoria))
+    frequencia = request.args.get('frequencia')
+    if frequencia:
+        query = query.filter(Conta.frequencia == Frequencia(frequencia))
+    ativo = request.args.get('ativo')
+    if ativo:
+        query = query.filter(Conta.ativo == (ativo.lower() == 'true'))
+
+    #Ordenação
+    ordenar_por = request.args.get('ordenar_por', 'nome')
+    if ordenar_por not in ['nome', 'categoria', 'valor_base']:
+        ordenar_por = 'nome'
+    ordem = request.args.get('ordem', 'asc')
+    if ordem == 'desc':
+        query = query.order_by(getattr(Conta, ordenar_por).desc())
+    else:
+        query = query.order_by(getattr(Conta, ordenar_por).asc())
+
+    contas = query.all()
+    return jsonify([c.to_dict() for c in contas]), 200
     
 @contas_bp.route('/faturas/<int:id>/pagar', methods=['POST'])
 @jwt_required()
@@ -151,6 +231,8 @@ def pagar_fatura(id):
     
     data = request.get_json()
     valor_pago = data.get('valor_pago', fatura.valor)
+    if valor_pago <= 0:
+        return jsonify({"msg": "O valor pago deve ser positivo"}), 400
     
     novo_historico = Historico(
         fatura_id=fatura.id,
@@ -181,26 +263,13 @@ def pagar_fatura(id):
 def listar_faturas():
     usuario = get_usuario_logado()
     if not usuario.residencia_id:
-        return jsonify({"msg": "Usuário sem residência"}), 403
+        return jsonify({"msg": "Você não está em uma residência"}), 403
     
     query = Fatura.query.join(Conta).filter(Conta.residencia_id == usuario.residencia_id)
-
-    # Aplica os filtros que foram enviados na requisição
-    status_filtro = request.args.get('status')
-    if status_filtro:
-        try:
-            query = query.filter(Fatura.status == StatusConta(status_filtro))
-        except ValueError:
-            return jsonify({"erro": f"Status '{status_filtro}' inválido"}), 400
-                
-    categoria_filtro = request.args.get('categoria')
-    if categoria_filtro:
-        try:
-            query = query.filter(Conta.categoria == CategoriaConta(categoria_filtro))
-        except ValueError:
-            return jsonify({"erro": f"Categoria '{categoria_filtro}' inválida"}), 400
-
-    query = query.order_by(Fatura.vencimento.desc())
+    # Filtros
+    query = aplicar_filtros_faturas(query, request.args)
+    query = aplica_ordenacao(query, request.args)
+    
     # Paginação
     pagina = request.args.get('pagina', 1, type=int)
     por_pagina = request.args.get('por_pagina', 20, type=int)
@@ -217,7 +286,7 @@ def listar_faturas():
         "por_pagina": por_pagina
     }), 200
 
-@contas_bp.route('/contas/<int:id>', methods=['PUT'])
+@contas_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def editar_conta(id):
     usuario = get_usuario_logado()
@@ -237,18 +306,21 @@ def editar_conta(id):
     db.session.commit()
     return jsonify(conta.to_dict()), 200
 
-@contas_bp.route('/contas/<int:id>', methods=['DELETE'])
+@contas_bp.route('/<int:id>/status', methods=['PATCH'])
 @jwt_required()
-def deletar_conta(id):
+def alterar_status_conta(id):
     usuario = get_usuario_logado()
     conta = Conta.query.filter_by(id=id, residencia_id=usuario.residencia_id).first()
     if not conta:
         return jsonify({"msg": "Conta não encontrada"}), 404
 
-    db.session.delete(conta)
+    conta.ativo = not conta.ativo
     db.session.commit()
-
-    return jsonify({"msg": "Conta excluída com sucesso"}), 200
+    status_str = "ativa" if conta.ativo else "desativada"
+    return jsonify({
+        "msg": f"Conta {status_str} com sucesso",
+        "conta": conta.to_dict()
+    }), 200
 
 @contas_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
@@ -256,7 +328,7 @@ def get_dashboard():
     usuario = get_usuario_logado()
     residencia_id = usuario.residencia_id
     if not residencia_id:
-        return jsonify({"msg": "Usuário sem residência"}), 403
+        return jsonify({"msg": "Você não está em uma residência"}), 403
     
     # Busca a contagem e a soma dos valores por status
     resumo_status = db.session.query(
@@ -289,3 +361,22 @@ def get_dashboard():
         "total_pago_mes_atual": str(total_mes_atual or 0.00), 
         "nome_residencia": usuario.residencia.nome if usuario.residencia else None
     }), 200
+
+@contas_bp.route('/dashboard/mensal', methods=['GET'])
+@jwt_required()
+def get_dashboard_mensal():
+    usuario = get_usuario_logado()
+    if not usuario.residencia_id:
+        return jsonify({"msg": "Você não está em uma residência"}), 403
+
+    meses = request.args.get('meses', 12, type=int)
+    data_inicio =  (date.today()) - relativedelta(months=meses)
+
+    resultados = db.session.query(
+        func.strftime('%Y', Historico.data_pagamento).label('ano'),
+        func.strftime('%m', Historico.data_pagamento).label('mes'),
+        func.sum(Historico.valor_pago).label('total')
+    ).join(Fatura).join(Conta).filter(Conta.residencia_id == usuario.residencia_id,Historico.data_pagamento >= data_inicio).group_by('ano', 'mes').order_by('ano', 'mes').all()
+
+    dados = [{'periodo': f"{int(r.ano)}-{int(r.mes):02d}", 'total': str(r.total or 0.00)} for r in resultados]
+    return jsonify({"gastos_por_mes": dados}), 200
