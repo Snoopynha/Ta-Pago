@@ -16,7 +16,7 @@ type Fatura = {
     observacao?: string;
 };
 
-const ICONES_CATEGORIA: Record<string, string> = {
+export const ICONES_CATEGORIA: Record<string, string> = {
     agua: 'water',
     luz: 'lightning-bolt',
     internet: 'wifi',
