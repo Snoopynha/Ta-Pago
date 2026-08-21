@@ -5,7 +5,7 @@ from utils import get_usuario_logado
 
 historico_bp = Blueprint('historico', __name__)
 
-@historico_bp.route('/historico', methods=['GET'])
+@historico_bp.route('/', methods=['GET'])
 @jwt_required()
 def listar_historico_geral():
     usuario = get_usuario_logado()
@@ -15,7 +15,7 @@ def listar_historico_geral():
     
     return jsonify([h.to_dict() for h in historicos]), 200
 
-@historico_bp.route('/contas/<int:conta_id>/historico', methods=['GET'])
+@historico_bp.route('/contas/<int:conta_id>', methods=['GET'])
 @jwt_required()
 def historico_por_conta(conta_id):
     usuario = get_usuario_logado()
