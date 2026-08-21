@@ -3,40 +3,53 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api/api';
 import { useRouter } from 'expo-router';
 
-const AuthContext = createContext<any>({});
+// Tipagem
+type AuthContextType = {
+    signed: boolean;
+    user: any | null;
+    signIn: (email: string, senha: string) => Promise<void>;
+    signOut: () => Promise<void>;
+    updateUser: (novosDados: any) => void;
+}
 
-export const AuthProvider = ({ children }: any) => {
-    const [user, setUser] = useState(null);
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+    const [user, setUser] = useState<any | null>(null);
     const router = useRouter();
 
     useEffect(() => {
-        async function loadStorageData() {
-            const storageUser = await AsyncStorage.getItem('@HomeFinance:user');
-            if (storageUser) {
-                setUser(JSON.parse(storageUser));
+        async function carregarDadosSalvos() {
+            const usuarioSalvo = await AsyncStorage.getItem('@HomeFinance:user');
+            if (usuarioSalvo) {
+                setUser(JSON.parse(usuarioSalvo));
             }
         }
-        loadStorageData();
+        carregarDadosSalvos();
     }, []);
 
-    async function signIn(email: string, senha: string) {
-        try {
-            const response = await api.post('/logar', { email, senha });
-            const { token, usuario } = response.data;
+    async function signIn(email: string, senha: string): Promise<void> {
+        const response = await api.post('/logar', { email, senha });
+        const { token, usuario } = response.data;
 
-            setUser(usuario);
-            await AsyncStorage.setItem('@HomeFinance:token', token);
-            await AsyncStorage.setItem('@HomeFinance:user', JSON.stringify(usuario));
+        setUser(usuario);
+        await AsyncStorage.setItem('@HomeFinance:token', token);
+        await AsyncStorage.setItem('@HomeFinance:user', JSON.stringify(usuario));
+        router.replace('/(tabs)/dashboard');
+    }
 
-            router.replace('/(tabs)/dashboard');
-        } catch (error) {
-            alert("Erro ao logar. Verifique as credenciais.");
-            console.log(error);
-        }
+    async function signOut(): Promise<void> {
+        setUser(null);
+        await AsyncStorage.multiRemove(['@HomeFinance:token', '@HomeFinance:user']);
+        router.replace('/');
+    }
+
+    function updateUser(novosDados: any): void {
+        setUser(novosDados);
     }
 
     return (
-        <AuthContext.Provider value={{ signed: !!user, user, signIn }}>
+        <AuthContext.Provider value={{ signed: !!user, user, signIn, signOut, updateUser }}>
             {children}
         </AuthContext.Provider>
     );
