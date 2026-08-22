@@ -21,9 +21,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 jwt = JWTManager(app)
 app.register_blueprint(usuario_bp, url_prefix='/api')
-app.register_blueprint(contas_bp, url_prefix='/api')
-app.register_blueprint(historico_bp, url_prefix='/api')
-app.register_blueprint(residencia_bp, url_prefix='/api')
+app.register_blueprint(contas_bp, url_prefix='/api/contas')
+app.register_blueprint(historico_bp, url_prefix='/api/historico')
+app.register_blueprint(residencia_bp, url_prefix='/api/residencia')
 
 def seed_db():
     if Residencia.query.first() is None:

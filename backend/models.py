@@ -48,7 +48,7 @@ class Residencia(db.Model):
             'id': self.id,
             'nome': self.nome,
             'codigo_convite': self.codigo_convite,
-            'usuarios': [u.to_dict() for u in self.usuarios],
+            'usuarios': [{'id': u.id, 'nome': u.nome, 'email': u.email} for u in self.usuarios],
             'contas': [c.to_dict() for c in self.contas]
         }
 
@@ -76,7 +76,11 @@ class Usuario(db.Model):
             'email': self.email,
             'residencia_id': self.residencia_id,
             'criado_em': self.criado_em.isoformat(),
-            'codigo_convite': self.residencia.codigo_convite if self.residencia else None
+            'residencia': {
+                'id': self.residencia.id,
+                'nome': self.residencia.nome,
+                'codigo_convite': self.residencia.codigo_convite
+            } if self.residencia else None
         }
 
 class Conta(db.Model):
@@ -134,7 +138,8 @@ class Fatura(db.Model):
         return {
             'id': self.id,
             'conta_id': self.conta_id,
-            'nome': self.conta.nome if self.conta else 'Removida',
+            'nome_conta': self.conta.nome if self.conta else 'Removida',
+            'categoria_conta': self.conta.categoria.value if self.conta else None,
             'vencimento': self.vencimento.isoformat(),
             'valor': str(self.valor),
             'status': self.status.value,
@@ -156,6 +161,7 @@ class Historico(db.Model):
             'id': self.id,
             'fatura_id': self.fatura_id,
             'nome_conta': self.fatura.conta.nome if self.fatura and self.fatura.conta else "Conta removida",
+            'categoria_conta': self.fatura.conta.categoria.value if self.fatura and self.fatura.conta else None,
             'usuario_id': self.usuario_id,
             'usuario': self.usuario.nome,
             'data_pagamento': self.data_pagamento.isoformat(),
