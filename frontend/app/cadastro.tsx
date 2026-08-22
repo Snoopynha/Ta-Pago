@@ -5,9 +5,11 @@ import api from '../src/api/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CORES, FONTE, TAMANHOS } from '@/src/styles/tema';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuth } from '@/src/contexts/AuthContext';
 
 export default function Cadastro() {
     const router = useRouter();
+    const { updateUser } = useAuth();
     // Controla o estado que está
     const [etapa, setEtapa] = useState<1 | 2>(1);
     const [carregando, setCarregando] = useState(false);
@@ -67,6 +69,7 @@ export default function Cadastro() {
 
             const perfilResp = await api.get('/eu');
             await AsyncStorage.setItem('@HomeFinance:user', JSON.stringify(perfilResp.data));
+            updateUser(perfilResp.data);
 
             Alert.alert("Bem vindo!", "Conta e residência configuradas com sucesso.", 
                 [{ text: "Entrar", onPress: () => router.replace('/(tabs)/dashboard')}]
