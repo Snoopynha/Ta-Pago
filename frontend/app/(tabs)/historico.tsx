@@ -1,34 +1,77 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, SectionList, RefreshControl } from 'react-native';
 import api from '../../src/api/api';
 import { CORES, FONTE, TAMANHOS } from '@/src/styles/tema';
+import { useFocusEffect } from 'expo-router';
+import { ICONES_CATEGORIA } from './contas';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { formatarMoeda } from './dashboard';
 
 // Tipagem
 type ItemHistorico = {
     id: number;
-    conta_nome: string;
+    nome_conta: string;
     valor_pago: number;
     data_pagamento: string;
-    usuario_nome: string;
+    usuario: string;
+    categoria_conta?: string;
 };
 
-export default function Historico() {
-    const [historico, setHistorico] = useState<ItemHistorico[]>([]);
-    const [carregando, setCarregando] = useState(true);
+type Secao = {
+    titulo: string,
+    total: number,
+    data: ItemHistorico[];
+};
 
-    useEffect(() => {
-        const carregarHistorico = async () => {
-            try {
-                const resposta = await api.get('/historico');
-                setHistorico(resposta.data);
-            } catch (error) {
-                console.error("Erro ao carregar o histórico: ", error);
-            } finally {
-                setCarregando(false);
-            }
-        };
-        carregarHistorico();
-    }, []);
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function agruparPorMes(itens: ItemHistorico[]): Secao[] {
+    const agrupado = itens.reduce<Record<string, Secao>>((acc, item) => {
+        const data = new Date(item.data_pagamento);
+        const chave = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+
+        if (!acc[chave]) {
+            acc[chave] = {
+                titulo: `${MESES[data.getMonth()]} ${data.getFullYear()}`,
+                total: 0,
+                data: [],
+            };
+        }
+
+        acc[chave].data.push(item);
+        acc[chave].total += Number(item.valor_pago);
+        return acc;
+    }, {});
+
+    return Object.entries(agrupado).sort(([a], [b]) => b.localeCompare(a)).map(([, secao]) => secao);
+}
+
+export default function Historico() {
+    const [secoes, setSecoes] = useState<Secao[]>([]);
+    const [carregando, setCarregando] = useState(true);
+    const [atualizando, setAtualizando] = useState(false);
+
+    const carregarHistorico = async (silencioso = false) => {
+        if (!silencioso) setCarregando(true);
+        else setAtualizando(true);
+
+        try {
+            const resposta = await api.get('/historico/');
+            const agrupado = agruparPorMes(resposta.data);
+            setSecoes(agrupado);
+        } catch (erro) {
+            console.error('Erro ao carregar histórico:', erro);
+        } finally {
+            setCarregando(false);
+            setAtualizando(false);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            carregarHistorico();
+        }, [])
+    );
 
     if (carregando) {
         return (
@@ -40,29 +83,46 @@ export default function Historico() {
 
     const renderItem = ({ item }: { item: ItemHistorico }) => {
         const dataFormatada = new Date(item.data_pagamento).toLocaleDateString('pt-BR');
-        const valorFormatado = Number(item.valor_pago).toFixed(2);
+        const icone = ICONES_CATEGORIA[item.categoria_conta || ''] || 'cash';
 
         return (
-            <View style={styles.cardHistorico}>
-                <View style={styles.infoEsquerda}>
-                    <Text style={styles.titulo}>{item.conta_nome}</Text>
-                    <Text style={styles.data}>Pago em {dataFormatada}</Text>
-                    <Text style={styles.usuario}>por {item.usuario_nome}</Text>
+            <View style={styles.item}>
+                <View style={styles.itemIcone}>
+                    <MaterialCommunityIcons name={icone as any} size={18} color={CORES.verdeprincipal}/>
                 </View>
-                <Text style={styles.valor}>R$ {valorFormatado}</Text>
+                <View style={styles.itemInfo}>
+                    <Text style={styles.itemNome}>{item.nome_conta}</Text>
+                    <Text style={styles.itemData}>{dataFormatada} · por {item.usuario}</Text>
+                </View>
+                <Text style={styles.itemValor}>R$ {formatarMoeda(Number(item.valor_pago))}</Text>
             </View>
         );
     };
 
+    const renderCabecalho = ({ section }: { section: Secao }) => (
+        <View style={styles.cabecalhoSecao}>
+            <Text style={styles.cabecalhoTitulo}>{section.titulo}</Text>
+            <Text style={styles.cabecalhoTotal}>R$ {formatarMoeda(section.total)}</Text>
+        </View>
+    );
+
     return (
         <View style={styles.container}>
-            <FlatList
-                data={historico}
-                keyExtractor={(item: any) => item.id.toString()}
+            <SectionList
+                sections={secoes}
+                keyExtractor={(item) => item.id.toString()}
                 renderItem={renderItem}
-                contentContainerStyle={{ padding: 20 }}
+                renderSectionHeader={renderCabecalho}
+                ItemSeparatorComponent={() => <View style={styles.separador}/>}
+                contentContainerStyle={{ padding: TAMANHOS.padding, paddingBottom: 30 }}
+                refreshControl={
+                    <RefreshControl refreshing={atualizando} onRefresh={() => carregarHistorico(true)} colors={[CORES.verdeprincipal]} tintColor={CORES.verdeprincipal}/>
+                }
                 ListEmptyComponent={
-                    <Text style={styles.vazio}>Nenhum pagamento registrado ainda.</Text>
+                    <View style={styles.vazio}>
+                        <MaterialCommunityIcons name="history" size={48} color={CORES.borda}/>
+                        <Text style={styles.vazioTexto}>Nenhum pagamento registrado ainda.</Text>
+                    </View>
                 }
             />
         </View>
@@ -72,35 +132,43 @@ export default function Historico() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: CORES.fundoapp },
     centro: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    cardHistorico: { 
-        backgroundColor: CORES.branco, 
-        padding: 15, 
-        borderRadius: TAMANHOS.borderRadius, 
-        marginBottom: 10, 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        elevation: 2,
-        shadowColor: CORES.preto,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+    cabecalhoSecao: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        marginTop: 8,
+        marginBottom: 4,
     },
-    infoEsquerda: { flex: 1, marginRight: 10 },
-    titulo: { fontSize: TAMANHOS.fontSize.m, fontFamily: FONTE.bold, color: CORES.preto },
-    data: { fontSize: TAMANHOS.fontSize.p, color: CORES.cinza, marginTop: 2 },
-    usuario: {
+    cabecalhoTitulo: { fontFamily: FONTE.bold, fontSize: TAMANHOS.fontSize.m, color: CORES.preto },
+    cabecalhoTotal: { fontFamily: FONTE.bold, fontSize: TAMANHOS.fontSize.m, color: CORES.verdeprincipal },
+    item: {
+        backgroundColor: CORES.branco,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        padding: 14,
+        borderRadius: TAMANHOS.borderRadius,
+    },
+    itemIcone: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: CORES.verdeprincipal + '15',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    itemInfo: { flex: 1 },
+    itemNome: { fontFamily: FONTE.bold, fontSize: TAMANHOS.fontSize.m, color: CORES.preto },
+    itemData: {
+        fontFamily: FONTE.regular,
         fontSize: TAMANHOS.fontSize.p,
-        fontFamily: FONTE.regular,
         color: CORES.cinzaclaro,
-        marginTop: 1,
+        marginTop: 2,
     },
-    valor: { fontSize: TAMANHOS.fontSize.p, fontFamily: FONTE.bold, color: CORES.verde },
-    vazio: { 
-        textAlign: 'center', 
-        marginTop: 50, 
-        color: CORES.cinza, 
-        fontSize: TAMANHOS.fontSize.m,
-        fontFamily: FONTE.regular,
-    },
+    itemValor: { fontFamily: FONTE.bold, fontSize: TAMANHOS.fontSize.m, color: CORES.verde },
+    separador: { height: 6 },
+    vazio: { alignItems: 'center', paddingTop: 80, gap: 12 },
+    vazioTexto: { fontFamily: FONTE.regular, fontSize: TAMANHOS.fontSize.m, color: CORES.cinza },
 });
