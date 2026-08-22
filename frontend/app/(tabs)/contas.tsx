@@ -8,10 +8,10 @@ import { CORES, FONTE, TAMANHOS } from '@/src/styles/tema';
 type Fatura = {
     id: number;
     conta_id: number;
-    conta_nome: string;
-    conta_categoria: string;
+    nome_conta: string;
+    categoria_conta: string;
     vencimento: string;
-    valor: number;
+    valor: string;
     status: 'pendente' | 'pago' | 'atrasado';
     observacao?: string;
 };
@@ -44,6 +44,7 @@ export default function Contas() {
     const [categoria, setCategoria] = useState('outros');
     const [frequencia, setFrequencia] = useState('mensal');
     const [diaVencimento, setDiaVencimento] = useState('');
+    const [mesVencimento, setMesVencimento] = useState('');
     const [observacao, setObservacao] = useState('');
     const CATEGORIAS = ["agua", "luz", "internet", "aluguel", "gas", "condominio", "streaming", "telefone", "outros"];
     const FREQUENCIAS = ["unica", "mensal", "anual"];
@@ -66,14 +67,14 @@ export default function Contas() {
 
     const pagarFatura = async (fatura: Fatura) => {
         Alert.alert(
-            "Confirmar pagamento", `Pagar ${fatura.conta_nome} - R$ ${Number(fatura.valor).toFixed(2)}?`,
+            "Confirmar pagamento", `Pagar ${fatura.nome_conta} - R$ ${Number(fatura.valor).toFixed(2)}?`,
             [
                 { text: "Cancelar", style: "cancel" },
                 {
                     text: "Confirmar",
                     onPress: async () => {
                         try {
-                            await api.post(`/contas/faturas/${fatura.id}/pagar`, {valor_pago: fatura.valor});
+                            await api.post(`/contas/faturas/${fatura.id}/pagar`, {valor_pago: parseFloat(String(fatura.valor))});
                             Alert.alert("Pago!", "Pagamento registrado com sucesso.");
                             carregarFaturas();
                         } catch (error: any) {
@@ -92,6 +93,11 @@ export default function Contas() {
             return;
         }
 
+        if (frequencia === 'anual' && (!diaVencimento || !mesVencimento)) {
+            Alert.alert("Atenção", "Informe o dia e o mês de vencimento para conta anual.");
+            return;
+        }
+
         try {
             await api.post('/contas/', {
                 nome,
@@ -99,6 +105,7 @@ export default function Contas() {
                 frequencia,
                 valor_base: parseFloat(valorBase.replace(',', '.')),
                 dia_vencimento: diaVencimento ? parseInt(diaVencimento) : null,
+                mes_vencimento: mesVencimento ? parseInt(mesVencimento) : null,
                 observacao: observacao || null,
                 gerar_primeira: true,
             });
@@ -117,6 +124,7 @@ export default function Contas() {
         setNome('');
         setValorBase('');
         setDiaVencimento('');
+        setMesVencimento('');
         setCategoria('outros');
         setFrequencia('mensal');
         setObservacao('');
@@ -128,7 +136,7 @@ export default function Contas() {
 
     const renderFatura = ({ item }: { item: Fatura }) => {
         const corStatus = COR_STATUS[item.status] || CORES.cinza;
-        const icone = ICONES_CATEGORIA[item.conta_categoria] || 'tag';
+        const icone = ICONES_CATEGORIA[item.categoria_conta] || 'tag';
 
         return (
             <View style={[styles.cardFatura, { borderLeftColor: corStatus }]}>
@@ -137,7 +145,7 @@ export default function Contas() {
                 </View>
 
                 <View style={[styles.infoFatura]}>
-                    <Text style={styles.nomeFatura}>{item.conta_nome}</Text>
+                    <Text style={styles.nomeFatura}>{item.nome_conta}</Text>
                     <Text style={styles.detalhesFatura}>Vence: {formatarData(item.vencimento)}</Text>
                     <View style={styles.linhaInferior}>
                         <Text style={styles.valorFatura}>R$ {Number(item.valor).toFixed(2)}</Text>
@@ -183,6 +191,13 @@ export default function Contas() {
 
                         {frequencia === 'mensal' && (
                             <TextInput style={styles.input} placeholder="Dia de vencimento (1–31)" keyboardType="numeric" value={diaVencimento} onChangeText={setDiaVencimento} maxLength={2}/>
+                        )}
+
+                        {frequencia === 'anual' && (
+                            <>
+                            <TextInput style={styles.input} placeholder="Dia de vencimento (1–31)" keyboardType="numeric" value={diaVencimento} onChangeText={setDiaVencimento} maxLength={2}/>
+                            <TextInput style={styles.input} placeholder="Mês de vencimento (1–12)" keyboardType="numeric" value={mesVencimento} onChangeText={setMesVencimento} maxLength={2}/>
+                            </>
                         )}
 
                         <Text style={styles.label}>Frequência:</Text>

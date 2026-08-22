@@ -9,16 +9,16 @@ import { ICONES_CATEGORIA } from './contas';
 // Tipagem
 type DadosDashboard = {
     nome_residencia: string | null;
-    total_mes_atual: string;
+    total_pago_mes_atual: string;
     resumo_status: {
         pendente: { quantidade: number; total: string };
         atrasado: { quantidade: number; total: string };
         pago: { quantidade: number; total: string };
     };
-    gastos_categoria: Array<{ categoria: string; total: string }>;
+    gastos_por_categoria: Array<{ categoria: string; total: string }>;
 };
 
-type DadosMensal = { gastos_mes: Array<{ periodo: string; total: string }>; };
+type DadosMensal = { gastos_por_mes: Array<{ periodo: string; total: string }>; };
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function formatarPeriodo(periodo: string): string {
@@ -26,7 +26,7 @@ function formatarPeriodo(periodo: string): string {
     return `${MESES[parseInt(mes) - 1]} ${ano}`;
 }
 
-function formatarMoeda(valor: string | number): string {
+export function formatarMoeda(valor: string | number): string {
     return Number(valor).toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -72,7 +72,7 @@ export default function Dashboard() {
         );
     }
 
-    const totalCategorias = dados?.gastos_categoria.reduce(
+    const totalCategorias = dados?.gastos_por_categoria?.reduce(
         (acc, item) => acc + Number(item.total), 0
     ) || 0;
 
@@ -93,7 +93,7 @@ export default function Dashboard() {
             <View style={styles.header}>
                 <Text style={styles.nomeResidencia}>{dados?.nome_residencia || 'Minha Residência'}</Text>
                 <Text style={styles.labelTotal}>Pago este mês</Text>
-                <Text style={styles.valorTotal}>R$ {formatarMoeda(dados?.total_mes_atual || '0')}</Text>
+                <Text style={styles.valorTotal}>R$ {formatarMoeda(dados?.total_pago_mes_atual || '0')}</Text>
             </View>
 
             <View style={styles.corpo}>
@@ -122,10 +122,10 @@ export default function Dashboard() {
                     </View>
                 )}
 
-                {dados?.gastos_categoria && dados.gastos_categoria.length > 0 && (
+                {dados?.gastos_por_categoria && dados.gastos_por_categoria.length > 0 && (
                     <View style={styles.secao}>
                         <Text style={styles.secaoTitulo}>Gastos por categoria</Text>
-                        {dados.gastos_categoria
+                        {dados.gastos_por_categoria
                             .sort((a, b) => Number(b.total) - Number(a.total))
                             .map((item) => {
                                 const pct = totalCategorias > 0
@@ -153,16 +153,16 @@ export default function Dashboard() {
                     </View>
                 )}
 
-                {mensal?.gastos_mes && mensal.gastos_mes.length > 0 && (
+                {mensal?.gastos_por_mes && mensal.gastos_por_mes.length > 0 && (
                     <View style={styles.secao}>
                         <Text style={styles.secaoTitulo}>Últimos 6 meses</Text>
                         {(() => {
                             const maxValor = Math.max(
-                                ...mensal.gastos_mes.map(m => Number(m.total))
+                                ...mensal.gastos_por_mes.map(m => Number(m.total))
                             );
                             return (
                                 <View style={styles.graficoColunas}>
-                                    {mensal.gastos_mes.map((mes) => {
+                                    {mensal.gastos_por_mes.map((mes) => {
                                         const altura = maxValor > 0
                                             ? (Number(mes.total) / maxValor) * 80
                                             : 0;
@@ -187,7 +187,7 @@ export default function Dashboard() {
                     </View>
                 )}
 
-                {!dados?.gastos_categoria?.length && !carregando && (
+                {!dados?.gastos_por_categoria?.length && !carregando && (
                     <View style={styles.vazio}>
                         <MaterialCommunityIcons name="home-outline" size={48} color={CORES.borda}/>
                         <Text style={styles.vazioTitulo}>Tudo limpo por aqui!</Text>
