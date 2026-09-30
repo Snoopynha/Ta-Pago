@@ -74,7 +74,8 @@ class Usuario(db.Model):
             'nome': self.nome,
             'email': self.email,
             'residencia_id': self.residencia_id,
-            'criado_em': self.criado_em.isoformat()
+            'criado_em': self.criado_em.isoformat(),
+            'codigo_convite': self.residencia.codigo_convite if self.residencia else None
         }
 
 class Conta(db.Model):
@@ -118,6 +119,7 @@ class Historico(db.Model):
         return {
             'id': self.id,
             'conta_id': self.conta_id,
+            'nome_conta': self.conta.nome if self.conta else "Conta Removida",
             'usuario_id': self.usuario_id,
             'usuario': self.usuario.nome,
             'data_pagamento': self.data_pagamento.isoformat(),
