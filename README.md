@@ -44,7 +44,7 @@
 
 ## Configuração do ambiente
 
-### Prerequisitos
+### Pré-requisitos
 
 - Python 3.8+ e `pip`
 - Node.js e `npm`
